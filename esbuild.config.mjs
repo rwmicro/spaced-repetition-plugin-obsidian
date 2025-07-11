@@ -52,6 +52,6 @@ const buildOptions = {
 if (prod) {
     await esbuild.build(buildOptions);
 } else {
-    buildOptions.watch = true;
-    await esbuild.build(buildOptions);
+    const context = await esbuild.context(buildOptions);
+    await context.watch();
 }
