@@ -1,0 +1,94 @@
+/* Import TailwindCSS */
+@import 'tailwindcss';
+
+/* Custom styles for the plugin */
+.sr-review-card {
+  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow;
+}
+
+.sr-button-primary {
+  @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors;
+}
+
+.sr-button-secondary {
+  @apply px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors;
+}
+
+/* Animation for notifications */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.sr-notification-enter {
+  animation: slideIn 0.3s ease-out;
+}
+
+.sr-notification-exit {
+  animation: slideOut 0.3s ease-in;
+}
+
+
+/* Review difficulty buttons */
+.sr-difficulty-again {
+  @apply flex-1 px-3 py-2 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition-colors;
+}
+
+.sr-difficulty-hard {
+  @apply flex-1 px-3 py-2 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-800 transition-colors;
+}
+
+.sr-difficulty-good {
+  @apply flex-1 px-3 py-2 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-800 transition-colors;
+}
+
+.sr-difficulty-easy {
+  @apply flex-1 px-3 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors;
+}
+
+/* Stats cards */
+.sr-stat-card {
+  @apply bg-gray-50 dark:bg-gray-700 rounded-lg p-3;
+}
+
+.sr-stat-label {
+  @apply flex items-center space-x-2 text-xs font-medium;
+}
+
+.sr-stat-value {
+  @apply text-2xl font-bold mt-1;
+}
+
+/* Scrollbar styling */
+.sr-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sr-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+.sr-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+}
+
+.sr-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500 dark:bg-gray-500;
+}
