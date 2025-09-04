@@ -12,7 +12,7 @@ import {
 } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import React from "react";
-import { ReviewListView } from "./components/review-list-view";
+import { CalendarView } from "./components/calendar-view";
 import { ReviewNotification } from "./components/review-notification";
 import { AddNoteModal } from "./components/add-note-modal";
 import { ReviewStateProvider } from "./context/review-context";
@@ -46,21 +46,21 @@ export default class SpacedRepetitionPlugin extends Plugin {
 
     // Register views
     this.registerView(
-      "review-list-view",
-      (leaf) => new ReviewView(leaf, this.manager, "list")
+      "review-calendar-view",
+      (leaf) => new ReviewView(leaf, this.manager, "calendar")
     );
 
 
     // Add ribbon icon
     this.addRibbonIcon("brain", "Spaced Repetition Reviews", () => {
-      this.activateView("list");
+      this.activateView("calendar");
     });
 
-    // Add command to open review list
+    // Add command to open review calendar
     this.addCommand({
-      id: "open-review-list",
-      name: "Open review list",
-      callback: () => this.activateView("list"),
+      id: "open-review-calendar",
+      name: "Open review calendar",
+      callback: () => this.activateView("calendar"),
     });
 
 
@@ -122,17 +122,17 @@ export default class SpacedRepetitionPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  async activateView(viewType: "list") {
+  async activateView(viewType: "calendar") {
     const { workspace } = this.app;
     let leaf: WorkspaceLeaf | null = null;
-    const leaves = workspace.getLeavesOfType("review-list-view");
+    const leaves = workspace.getLeavesOfType("review-calendar-view");
 
     if (leaves.length > 0) {
       leaf = leaves[0];
     } else {
       leaf = workspace.getLeaf(false);
       await leaf.setViewState({
-        type: "review-list-view",
+        type: "review-calendar-view",
         active: true,
       });
     }
@@ -180,8 +180,8 @@ export default class SpacedRepetitionPlugin extends Plugin {
             this.notificationRoot.unmount();
             this.notificationRoot = null;
           }
-          // Open the review list view instead of individual note
-          this.activateView("list");
+          // Open the review calendar view instead of individual note
+          this.activateView("calendar");
         },
       })
     );
@@ -538,7 +538,7 @@ export default class SpacedRepetitionPlugin extends Plugin {
 
   private refreshAllReviewViews() {
     // Find all review views and trigger refresh
-    const reviewViews = this.app.workspace.getLeavesOfType("review-list-view");
+    const reviewViews = this.app.workspace.getLeavesOfType("review-calendar-view");
     
     reviewViews.forEach(leaf => {
       const view = leaf.view as ReviewView;
@@ -569,14 +569,14 @@ class ReviewView extends ItemView {
   constructor(
     leaf: WorkspaceLeaf,
     manager: SpacedRepetitionManager,
-    viewType: "list"
+    viewType: "calendar"
   ) {
     super(leaf);
     this.manager = manager;
   }
 
   getViewType() {
-    return "review-list-view";
+    return "review-calendar-view";
   }
 
   getDisplayText() {
@@ -599,7 +599,7 @@ class ReviewView extends ItemView {
         manager: this.manager,
         onOpenNote: (note: any) =>
           (this.manager as any).plugin.openNoteForReview(note),
-        children: React.createElement(ReviewListView),
+        children: React.createElement(CalendarView),
       })
     );
   }
