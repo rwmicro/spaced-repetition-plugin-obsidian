@@ -345,7 +345,7 @@ export const CalendarView: React.FC = () => {
                       <div className={`text-sm font-medium ${
                         isTodayDate ? "text-blue-700 dark:text-blue-300" : "text-neutral-600 dark:text-neutral-400"
                       }`}>
-                        {dayNames[index]}
+                        {dayNames[date.getDay()]}
                       </div>
                       <div className={`text-lg font-bold ${
                         isTodayDate ? "text-blue-900 dark:text-blue-100" : "text-neutral-900 dark:text-neutral-100"

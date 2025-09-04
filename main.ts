@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS: PluginSettings = {
   maxNotesPerDay: 20,
   reviewHotkey: "Ctrl+Shift+R",
   dataFilePath:
-    ".obsidian/plugins/spaced-repetition/data.json",
+    ".obsidian/plugins/spaced-repetition-plugin-obsidian/data.json",
 };
 
 export default class SpacedRepetitionPlugin extends Plugin {
@@ -735,11 +735,11 @@ class SpacedRepetitionSettingTab extends PluginSettingTab {
       )
       .addText((text) =>
         text
-          .setPlaceholder(".obsidian/plugins/spaced-repetition/data.json")
+          .setPlaceholder(".obsidian/plugins/spaced-repetition-plugin-obsidian/data.json")
           .setValue(this.plugin.settings.dataFilePath)
           .onChange(async (value) => {
             this.plugin.settings.dataFilePath =
-              value || ".obsidian/plugins/spaced-repetition/data.json";
+              value || ".obsidian/plugins/spaced-repetition-plugin-obsidian/data.json";
             await this.plugin.saveSettings();
           })
       );
