@@ -1,4 +1,5 @@
 import { App, TFile, Notice, Plugin } from 'obsidian';
+import * as yaml from 'js-yaml';
 import { ReviewNote, ReviewDifficulty, PluginSettings, SpacedRepetitionData, ReviewNoteData } from '../types';
 
 export class SpacedRepetitionManager {
@@ -18,7 +19,10 @@ export class SpacedRepetitionManager {
             version: '1.0.0',
             lastUpdated: new Date().toISOString()
         };
-        this.loadData();
+    }
+
+    async init(): Promise<void> {
+        await this.loadData();
     }
 
     // Event handling methods
@@ -60,8 +64,9 @@ export class SpacedRepetitionManager {
 
     private async migrateFromFileSystem() {
         try {
-            // Try to load from old file-based system
-            const dataFile = this.app.vault.getAbstractFileByPath(this.settings.dataFilePath) as TFile;
+            // Try to load from old file-based system (legacy path)
+            const legacyPath = '.obsidian/plugins/spaced-repetition-plugin-obsidian/data.json';
+            const dataFile = this.app.vault.getAbstractFileByPath(legacyPath) as TFile;
             if (dataFile) {
                 const content = await this.app.vault.read(dataFile);
                 const oldData = JSON.parse(content);
@@ -73,7 +78,7 @@ export class SpacedRepetitionManager {
                 }
             }
         } catch (error) {
-            console.error('Error migrating from file system:', error);
+            // Silently ignore - no legacy data to migrate
         }
     }
 
@@ -246,7 +251,6 @@ export class SpacedRepetitionManager {
     async cleanupFrontmatter(file: TFile): Promise<void> {
         try {
             const content = await this.app.vault.read(file);
-            const yaml = require('js-yaml');
             
             // Parse existing frontmatter
             const frontmatterRegex = /^---\n([\s\S]*?)\n---/;

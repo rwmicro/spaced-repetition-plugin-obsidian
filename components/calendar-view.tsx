@@ -7,15 +7,22 @@ import {
   ChevronRight,
   Calendar,
   List,
+  AlertCircle,
+  CalendarDays,
+  Activity,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { ReviewContext } from "../context/review-context";
 import { ReviewNote } from "../types";
 import { t, getDayNames, getFormattedDateRange, getFormattedDate } from "../utils/i18n";
+import { ActivityHeatmap } from "./activity-heatmap";
 
 export const CalendarView: React.FC = () => {
   const { notes, openNote } = useContext(ReviewContext);
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [viewMode, setViewMode] = useState<'calendar' | 'table'>('calendar');
+  const [showHeatmap, setShowHeatmap] = useState(true);
 
   // Get current week dates starting from today
   const getWeekDates = (weekOffset: number = 0) => {
@@ -116,6 +123,21 @@ export const CalendarView: React.FC = () => {
   const navigateWeek = (direction: 'prev' | 'next') => {
     setCurrentWeekOffset(prev => direction === 'prev' ? prev - 1 : prev + 1);
   };
+
+  const goToToday = () => {
+    setCurrentWeekOffset(0);
+  };
+
+  // Get overdue notes
+  const overdueNotes = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return notes.filter(note => {
+      const reviewDate = new Date(note.nextReview);
+      reviewDate.setHours(0, 0, 0, 0);
+      return reviewDate < now;
+    });
+  }, [notes]);
 
   const getWeekRangeText = () => {
     const startDate = weekDates[0];
@@ -245,7 +267,7 @@ export const CalendarView: React.FC = () => {
   return (
     <div className="h-full overflow-hidden flex flex-col">
       {/* Header with Stats and Navigation */}
-      <div className="border-b border-neutral-300 dark:border-neutral-500 p-4">
+      <div className="border-b border-neutral-300 dark:border-neutral-500 p-4 flex-shrink-0">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">{t('spaced_repetition_reviews')}</h2>
           <button
@@ -258,10 +280,11 @@ export const CalendarView: React.FC = () => {
         </div>
         
         {/* Week Navigation */}
-        <div className="flex items-center justify-center mb-4 gap-4">
+        <div className="flex items-center justify-center mb-4 gap-2">
           <button
             onClick={() => navigateWeek('prev')}
             className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            title={t('previous_week')}
           >
             <ChevronLeft size={20} />
           </button>
@@ -271,10 +294,50 @@ export const CalendarView: React.FC = () => {
           <button
             onClick={() => navigateWeek('next')}
             className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+            title={t('next_week')}
           >
             <ChevronRight size={20} />
           </button>
+          {currentWeekOffset !== 0 && (
+            <button
+              onClick={goToToday}
+              className="ml-2 flex items-center gap-1 px-3 py-2 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-sm font-medium"
+              title={t('go_to_today')}
+            >
+              <CalendarDays size={16} />
+              {t('today')}
+            </button>
+          )}
         </div>
+
+        {/* Overdue Banner */}
+        {overdueNotes.length > 0 && (
+          <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle size={18} className="text-red-600 dark:text-red-400" />
+              <span className="font-semibold text-red-800 dark:text-red-200">
+                {overdueNotes.length} {overdueNotes.length === 1 ? t('overdue_note') : t('overdue_notes')}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {overdueNotes.slice(0, 5).map(note => (
+                <button
+                  key={note.id}
+                  onClick={() => openNote(note)}
+                  className="px-3 py-1.5 bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100 rounded-full text-sm hover:bg-red-200 dark:hover:bg-red-700 transition-colors truncate max-w-[200px]"
+                  title={note.title}
+                >
+                  {note.title}
+                </button>
+              ))}
+              {overdueNotes.length > 5 && (
+                <span className="px-3 py-1.5 text-red-600 dark:text-red-400 text-sm">
+                  +{overdueNotes.length - 5} {t('more')}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
@@ -315,29 +378,41 @@ export const CalendarView: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* Activity Heatmap Toggle */}
+        <button
+          onClick={() => setShowHeatmap(!showHeatmap)}
+          className="w-full flex items-center justify-center gap-2 py-2 text-sm text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+        >
+          <Activity size={16} />
+          <span>{t('activity_stats') || 'Activity & Stats'}</span>
+          {showHeatmap ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+
+        {/* Activity Heatmap */}
+        {showHeatmap && (
+          <div className="mt-3">
+            <ActivityHeatmap notes={notes} />
+          </div>
+        )}
       </div>
 
       {/* Calendar Grid */}
-      <div className="flex-1 overflow-hidden p-4" style={{ height: 'calc(100vh - 280px)' }}>
-        <div className="h-full">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4 h-full">
+      <div className="flex-1 min-h-0 p-4 flex flex-col">
+        <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
             {weekDates.map((date, index) => {
               const dayNotes = notesByDay[date.toDateString()] || [];
               const isTodayDate = isToday(date);
               const isOverdueDate = isOverdue(date);
-              
+
               return (
                 <div
                   key={date.toISOString()}
-                  className={`border rounded-lg p-3 flex flex-col ${
-                    isTodayDate 
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-950" 
+                  className={`border rounded-lg p-3 flex flex-col overflow-hidden min-h-[730px] ${
+                    isTodayDate
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-950"
                       : "border-neutral-200 dark:border-neutral-700"
                   }`}
-                  style={{ 
-                    height: 'calc((100vh - 390px) / 1)',
-                    minHeight: '400px'
-                  }}
                 >
                   {/* Day Header */}
                   <div className="flex justify-between items-center mb-3">
@@ -397,7 +472,6 @@ export const CalendarView: React.FC = () => {
                 </div>
               );
             })}
-          </div>
         </div>
       </div>
     </div>

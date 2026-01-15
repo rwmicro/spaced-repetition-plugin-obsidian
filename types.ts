@@ -33,7 +33,6 @@ export interface PluginSettings {
     defaultInterval: number;
     maxNotesPerDay: number;
     reviewHotkey: string;
-    dataFilePath: string;
 }
 
 export type ReviewDifficulty = 'again' | 'hard' | 'good' | 'easy';

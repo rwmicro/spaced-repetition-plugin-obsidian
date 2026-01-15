@@ -9,6 +9,8 @@ import {
   TFile,
   Modal,
   Menu,
+  setIcon,
+  MarkdownView,
 } from "obsidian";
 import { createRoot, Root } from "react-dom/client";
 import React from "react";
@@ -17,15 +19,13 @@ import { ReviewNotification } from "./components/review-notification";
 import { AddNoteModal } from "./components/add-note-modal";
 import { ReviewStateProvider } from "./context/review-context";
 import { SpacedRepetitionManager } from "./utils/spaced-repetition-manager";
-import { PluginSettings } from "./types";
+import { PluginSettings, ReviewNote } from "./types";
 
 const DEFAULT_SETTINGS: PluginSettings = {
   notificationEnabled: true,
   defaultInterval: 1,
   maxNotesPerDay: 20,
   reviewHotkey: "Ctrl+Shift+R",
-  dataFilePath:
-    ".obsidian/plugins/spaced-repetition-plugin-obsidian/data.json",
 };
 
 export default class SpacedRepetitionPlugin extends Plugin {
@@ -37,6 +37,7 @@ export default class SpacedRepetitionPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     this.manager = new SpacedRepetitionManager(this.app, this.settings, this);
+    await this.manager.init();
 
     // Listen for data changes
     this.manager.on('dataChanged', () => {
@@ -47,7 +48,7 @@ export default class SpacedRepetitionPlugin extends Plugin {
     // Register views
     this.registerView(
       "review-calendar-view",
-      (leaf) => new ReviewView(leaf, this.manager, "calendar")
+      (leaf) => new ReviewView(leaf, this.manager, this)
     );
 
 
@@ -108,10 +109,22 @@ export default class SpacedRepetitionPlugin extends Plugin {
   }
 
   onunload() {
+    // Clean up notification
     if (this.notificationRoot) {
       this.notificationRoot.unmount();
+      this.notificationRoot = null;
     }
+    // Remove notification container from DOM
+    const notificationContainer = document.getElementById("sr-notification-container");
+    if (notificationContainer) {
+      notificationContainer.remove();
+    }
+    // Clean up review buttons
     this.hideReviewButtons();
+    // Clean up status bar event listener
+    if (this.statusBarItem) {
+      this.statusBarItem.removeEventListener("click", this.onStatusBarClick);
+    }
   }
 
   async loadSettings() {
@@ -209,7 +222,10 @@ export default class SpacedRepetitionPlugin extends Plugin {
     if (activeFile) {
       // Show status bar for all files
       this.statusBarItem.style.display = "block";
-      this.statusBarItem.setText("📚 Add to Spaced Repetition");
+      this.statusBarItem.empty();
+      const icon = this.statusBarItem.createSpan({ cls: "status-bar-item-icon" });
+      setIcon(icon, "book-open");
+      this.statusBarItem.createSpan({ text: " Add to SR" });
 
       // Remove existing event listeners
       this.statusBarItem.removeEventListener("click", this.onStatusBarClick);
@@ -226,7 +242,7 @@ export default class SpacedRepetitionPlugin extends Plugin {
     this.addCurrentNoteToReview();
   };
 
-  async openNoteForReview(note: any) {
+  async openNoteForReview(note: ReviewNote) {
     // Open the note file
     const file = this.app.vault.getFileByPath(note.filePath);
     if (file) {
@@ -242,7 +258,7 @@ export default class SpacedRepetitionPlugin extends Plugin {
   private reviewButtonsRoot: Root | null = null;
   private escapeKeyHandler: ((event: KeyboardEvent) => void) | null = null;
 
-  private showReviewButtons(note: any) {
+  private showReviewButtons(note: ReviewNote) {
     // Remove existing review buttons
     this.hideReviewButtons();
 
@@ -280,10 +296,18 @@ export default class SpacedRepetitionPlugin extends Plugin {
     this.reviewButtonsContainer.style.cssText = containerStyles;
     document.body.appendChild(this.reviewButtonsContainer);
 
-    // Add escape key handler
+    // Add keyboard handler for escape and shortcuts (1-4)
     this.escapeKeyHandler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         this.hideReviewButtons();
+      } else if (event.key === '1') {
+        this.reviewNote(note, "again");
+      } else if (event.key === '2') {
+        this.reviewNote(note, "hard");
+      } else if (event.key === '3') {
+        this.reviewNote(note, "good");
+      } else if (event.key === '4') {
+        this.reviewNote(note, "easy");
       }
     };
     document.addEventListener('keydown', this.escapeKeyHandler);
@@ -315,6 +339,20 @@ export default class SpacedRepetitionPlugin extends Plugin {
     
     const buttonPadding = isMobile ? "10px 12px" : "8px 16px";
     
+    // Keyboard shortcut badge style
+    const kbdStyle = {
+      display: isMobile ? "none" : "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "18px",
+      height: "18px",
+      marginRight: "6px",
+      fontSize: "11px",
+      fontWeight: "600",
+      borderRadius: "3px",
+      backgroundColor: "rgba(0,0,0,0.1)",
+    };
+
     this.reviewButtonsRoot.render(
       React.createElement(
         "div",
@@ -331,20 +369,24 @@ export default class SpacedRepetitionPlugin extends Plugin {
                 color: "#dc2626",
               },
               onClick: () => this.reviewNote(note, "again"),
-              onMouseEnter: (e) => {
+              title: "Press 1",
+              onMouseEnter: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#fecaca";
-                  e.target.style.transform = "translateY(-1px)";
+                  (e.target as HTMLElement).style.backgroundColor = "#fecaca";
+                  (e.target as HTMLElement).style.transform = "translateY(-1px)";
                 }
               },
-              onMouseLeave: (e) => {
+              onMouseLeave: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#fee2e2";
-                  e.target.style.transform = "translateY(0)";
+                  (e.target as HTMLElement).style.backgroundColor = "#fee2e2";
+                  (e.target as HTMLElement).style.transform = "translateY(0)";
                 }
               },
             },
-            "Again"
+            [
+              React.createElement("span", { key: "kbd", style: kbdStyle }, "1"),
+              React.createElement("span", { key: "label" }, "Again"),
+            ]
           ),
           React.createElement(
             "button",
@@ -357,20 +399,24 @@ export default class SpacedRepetitionPlugin extends Plugin {
                 color: "#ea580c",
               },
               onClick: () => this.reviewNote(note, "hard"),
-              onMouseEnter: (e) => {
+              title: "Press 2",
+              onMouseEnter: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#fdba74";
-                  e.target.style.transform = "translateY(-1px)";
+                  (e.target as HTMLElement).style.backgroundColor = "#fdba74";
+                  (e.target as HTMLElement).style.transform = "translateY(-1px)";
                 }
               },
-              onMouseLeave: (e) => {
+              onMouseLeave: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#fed7aa";
-                  e.target.style.transform = "translateY(0)";
+                  (e.target as HTMLElement).style.backgroundColor = "#fed7aa";
+                  (e.target as HTMLElement).style.transform = "translateY(0)";
                 }
               },
             },
-            "Hard"
+            [
+              React.createElement("span", { key: "kbd", style: kbdStyle }, "2"),
+              React.createElement("span", { key: "label" }, "Hard"),
+            ]
           ),
           React.createElement(
             "button",
@@ -383,20 +429,24 @@ export default class SpacedRepetitionPlugin extends Plugin {
                 color: "#16a34a",
               },
               onClick: () => this.reviewNote(note, "good"),
-              onMouseEnter: (e) => {
+              title: "Press 3",
+              onMouseEnter: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#bbf7d0";
-                  e.target.style.transform = "translateY(-1px)";
+                  (e.target as HTMLElement).style.backgroundColor = "#bbf7d0";
+                  (e.target as HTMLElement).style.transform = "translateY(-1px)";
                 }
               },
-              onMouseLeave: (e) => {
+              onMouseLeave: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#dcfce7";
-                  e.target.style.transform = "translateY(0)";
+                  (e.target as HTMLElement).style.backgroundColor = "#dcfce7";
+                  (e.target as HTMLElement).style.transform = "translateY(0)";
                 }
               },
             },
-            "Good"
+            [
+              React.createElement("span", { key: "kbd", style: kbdStyle }, "3"),
+              React.createElement("span", { key: "label" }, "Good"),
+            ]
           ),
           React.createElement(
             "button",
@@ -409,20 +459,24 @@ export default class SpacedRepetitionPlugin extends Plugin {
                 color: "#2563eb",
               },
               onClick: () => this.reviewNote(note, "easy"),
-              onMouseEnter: (e) => {
+              title: "Press 4",
+              onMouseEnter: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#bfdbfe";
-                  e.target.style.transform = "translateY(-1px)";
+                  (e.target as HTMLElement).style.backgroundColor = "#bfdbfe";
+                  (e.target as HTMLElement).style.transform = "translateY(-1px)";
                 }
               },
-              onMouseLeave: (e) => {
+              onMouseLeave: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "#dbeafe";
-                  e.target.style.transform = "translateY(0)";
+                  (e.target as HTMLElement).style.backgroundColor = "#dbeafe";
+                  (e.target as HTMLElement).style.transform = "translateY(0)";
                 }
               },
             },
-            "Easy"
+            [
+              React.createElement("span", { key: "kbd", style: kbdStyle }, "4"),
+              React.createElement("span", { key: "label" }, "Easy"),
+            ]
           ),
           React.createElement(
             "div",
@@ -450,17 +504,17 @@ export default class SpacedRepetitionPlugin extends Plugin {
                 minWidth: isMobile ? "44px" : "auto",
               },
               onClick: () => this.closeNoteAndButtons(note),
-              title: "Close note and review buttons",
-              onMouseEnter: (e) => {
+              title: "Close (Esc)",
+              onMouseEnter: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "var(--background-modifier-hover)";
-                  e.target.style.transform = "translateY(-1px)";
+                  (e.target as HTMLElement).style.backgroundColor = "var(--background-modifier-hover)";
+                  (e.target as HTMLElement).style.transform = "translateY(-1px)";
                 }
               },
-              onMouseLeave: (e) => {
+              onMouseLeave: (e: MouseEvent) => {
                 if (!isMobile) {
-                  e.target.style.backgroundColor = "var(--background-secondary)";
-                  e.target.style.transform = "translateY(0)";
+                  (e.target as HTMLElement).style.backgroundColor = "var(--background-secondary)";
+                  (e.target as HTMLElement).style.transform = "translateY(0)";
                 }
               },
             },
@@ -486,52 +540,58 @@ export default class SpacedRepetitionPlugin extends Plugin {
     }
   }
 
-  private closeNoteAndButtons(note: any) {
+  private closeNoteAndButtons(note: ReviewNote) {
     // Hide the review buttons first
     this.hideReviewButtons();
-    
+
     // Close the note tab
     const activeFile = this.app.workspace.getActiveFile();
-    
+
     if (activeFile && activeFile.path === note.filePath) {
       // Find the leaf containing this specific file
       let targetLeaf: WorkspaceLeaf | null = null;
       this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
-        const view = leaf.view as any;
-        if (view.file && view.file.path === note.filePath) {
+        if (leaf.view instanceof MarkdownView && leaf.view.file?.path === note.filePath) {
           targetLeaf = leaf;
         }
       });
-      
+
       if (targetLeaf) {
-        targetLeaf.detach();
+        // Don't detach if it's the only leaf in the workspace
+        const allLeaves = this.app.workspace.getLeavesOfType("markdown");
+        if (allLeaves.length > 1) {
+          targetLeaf.detach();
+        }
       }
     }
   }
 
   private async reviewNote(
-    note: any,
+    note: ReviewNote,
     difficulty: "again" | "hard" | "good" | "easy"
   ) {
     await this.manager.reviewNote(note.id, difficulty);
     this.hideReviewButtons();
     new Notice(`Note reviewed as ${difficulty}`);
-    
+
     // Close the current note tab
     const activeFile = this.app.workspace.getActiveFile();
-    
+
     if (activeFile && activeFile.path === note.filePath) {
       // Find the leaf containing this specific file
       let targetLeaf: WorkspaceLeaf | null = null;
       this.app.workspace.iterateAllLeaves((leaf: WorkspaceLeaf) => {
-        const view = leaf.view as any;
-        if (view.file && view.file.path === note.filePath) {
+        if (leaf.view instanceof MarkdownView && leaf.view.file?.path === note.filePath) {
           targetLeaf = leaf;
         }
       });
-      
+
       if (targetLeaf) {
-        targetLeaf.detach();
+        // Don't detach if it's the only leaf in the workspace
+        const allLeaves = this.app.workspace.getLeavesOfType("markdown");
+        if (allLeaves.length > 1) {
+          targetLeaf.detach();
+        }
       }
     }
   }
@@ -565,14 +625,16 @@ export default class SpacedRepetitionPlugin extends Plugin {
 class ReviewView extends ItemView {
   private root: Root | null = null;
   private manager: SpacedRepetitionManager;
+  private plugin: SpacedRepetitionPlugin;
 
   constructor(
     leaf: WorkspaceLeaf,
     manager: SpacedRepetitionManager,
-    viewType: "calendar"
+    plugin: SpacedRepetitionPlugin
   ) {
     super(leaf);
     this.manager = manager;
+    this.plugin = plugin;
   }
 
   getViewType() {
@@ -584,7 +646,7 @@ class ReviewView extends ItemView {
   }
 
   getIcon() {
-    return "list";
+    return "brain";
   }
 
   async onOpen() {
@@ -597,8 +659,7 @@ class ReviewView extends ItemView {
     this.root.render(
       React.createElement(ReviewStateProvider, {
         manager: this.manager,
-        onOpenNote: (note: any) =>
-          (this.manager as any).plugin.openNoteForReview(note),
+        onOpenNote: (note: ReviewNote) => this.plugin.openNoteForReview(note),
         children: React.createElement(CalendarView),
       })
     );
@@ -728,20 +789,5 @@ class SpacedRepetitionSettingTab extends PluginSettingTab {
       );
 
 
-    new Setting(containerEl)
-      .setName("Data file path")
-      .setDesc(
-        "Path where spaced repetition data is stored (relative to vault root)"
-      )
-      .addText((text) =>
-        text
-          .setPlaceholder(".obsidian/plugins/spaced-repetition-plugin-obsidian/data.json")
-          .setValue(this.plugin.settings.dataFilePath)
-          .onChange(async (value) => {
-            this.plugin.settings.dataFilePath =
-              value || ".obsidian/plugins/spaced-repetition-plugin-obsidian/data.json";
-            await this.plugin.saveSettings();
-          })
-      );
   }
 }
