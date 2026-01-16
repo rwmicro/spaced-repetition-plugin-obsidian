@@ -1,6 +1,6 @@
 {
-  "id": "spaced-repetition",
-  "name": "Spaced Repetition",
+  "id": "advanced-spaced-repetition",
+  "name": "Advanced Spaced Repetition",
   "version": "1.0.0",
   "minAppVersion": "1.0.0",
   "description": "A sophisticated spaced repetition system for Obsidian that helps you save entire notes and retain information effectively.",
