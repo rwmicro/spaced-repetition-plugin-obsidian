@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output (optional - some keep these for distribution)
+# main.js
+# styles.css
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Optional
+*.bak
